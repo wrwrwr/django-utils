@@ -9,6 +9,8 @@ class URLField(forms.URLField):
         super(URLField, self).__init__(*args, **kwargs)
 
     def to_python(self, value):
+        if not value:
+            return value
         base_url = self.base_url
         if base_url is None:
             from django.contrib.sites.models import Site
