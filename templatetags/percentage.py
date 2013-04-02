@@ -18,4 +18,3 @@ def percentage(value, precision=2):
         return value
     value = round(value, precision)
     return number_format(value, decimal_pos=precision) + u'%'
-

@@ -71,7 +71,8 @@ class IndentNode(template.Node):
         elif self.mode == '+':
             r = LINE_START.sub(i, r)
         else:
-             raise NotImplementedError('Only fixed and plus are supported at the moment.')
+             raise NotImplementedError(
+                "Only fixed and plus are supported at the moment.")
         if self.starting:
             r = INPUT_START_WS.sub('', r)
         return r

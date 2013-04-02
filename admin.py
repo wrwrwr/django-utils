@@ -1,25 +1,21 @@
-from django.contrib import admin
+from django.contrib.admin import ModelAdmin
 
-import modeltranslation.admin
+from modeltranslation.admin import TranslationAdmin
 
 
-class TabbedTranslationAdmin(modeltranslation.admin.TranslationAdmin):
-	class Media:
-		js = (
-            'http://code.jquery.com/jquery-1.9.0.min.js',
-            'http://code.jquery.com/ui/1.10.0/jquery-ui.min.js',
+class TabbedTranslationAdmin(TranslationAdmin):
+    class Media:
+        js = (
+            '//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js',
+            '//ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js',
             'modeltranslation/js/tabbed_translation_fields.js',
-		)
-		css = {
-			'screen': ('http://code.jquery.com/ui/1.10.0/themes/base/jquery-ui.css',),
-		}
+        )
 
 
-class SortableAdmin(admin.ModelAdmin):
-	class Media:
-		js = (
-			'scripts/jquery.min.js',
-			'scripts/jquery-ui.min.js',
-			'scripts/admin-sortable.js',
-		)
-
+class SortableAdmin(ModelAdmin):
+    class Media:
+        js = (
+            '//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js',
+            '//ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js',
+            'scripts/admin-sortable.js',
+        )
