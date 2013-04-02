@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 import forms
 
@@ -21,3 +22,9 @@ class URLField(models.URLField):
         }
         defaults.update(kwargs)
         return super(URLField, self).formfield(**defaults)
+
+
+if 'south' in settings.INSTALLED_APPS:
+    from south.modelsinspector import add_introspection_rules
+    rules = [((URLField,), [], {'base_url': ['base_url', {'default': None}]})]
+    add_introspection_rules(rules, ['^utils\.fields\.'])
