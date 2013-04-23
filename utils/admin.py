@@ -1,4 +1,5 @@
 from django.contrib.admin import ModelAdmin
+from django.utils.translation import ugettext_lazy as _
 
 from modeltranslation.admin import TranslationAdmin
 
