@@ -1,5 +1,8 @@
+from django.contrib import admin
 from django.contrib.admin import ModelAdmin
 from django.utils.translation import ugettext_lazy as _
+
+from mezzanine.core.admin import DisplayableAdmin
 
 from modeltranslation.admin import TranslationAdmin
 
@@ -51,6 +54,45 @@ def make_fields_mutable(model_admin):
     """
     for fieldset in model_admin.fieldsets:
         fieldset[1]['fields'] = list(fieldset[1]['fields'])
+
+
+def separate_page_admin(page_models, page_admins):
+    """
+    Mezzanine. Makes an admin view / menu entry for a subset of pages' types.
+
+    Examples:
+
+        # Cartridge category administration split from other content types.
+        separate_page_admin(Category, CategoryAdmin)
+
+        # View with just subpages and galleries (add RichTextPage to the menu).
+        separate_page_admin((RichTextPage, Gallery), (PageAdmin, GalleryAdmin))
+    """
+    if not isinstance(page_models, (tuple, list)):
+        page_models = [page_models]
+    if not isinstance(page_admins, (tuple, list)):
+        page_admins = [page_admins]
+
+    for page_admin, page_model in zip(page_admins, page_models):
+
+        class SeparatePageAdmin(page_admin):
+            @classmethod
+            def get_content_models(cls):
+                # PageAdmin.get_content_models side effects.
+                super(SeparatePageAdmin, cls).get_content_models()
+                return page_models
+
+            def in_menu(self):
+                return self.model == page_models[0]
+
+            def changelist_view(self, request, **kwargs):
+                kwargs.setdefault('extra_context', {})
+                kwargs['extra_context']['page_models'] = page_models
+                return DisplayableAdmin.changelist_view(self, request,
+                                                        **kwargs)
+
+        admin.site.unregister(page_model)
+        admin.site.register(page_model, SeparatePageAdmin)
 
 
 def collapsible_status(model_admin):
