@@ -3,6 +3,7 @@ from django.contrib.admin import ModelAdmin
 from django.utils.translation import ugettext_lazy as _
 
 from mezzanine.core.admin import DisplayableAdmin
+from mezzanine.pages.admin import PageAdminForm
 
 from modeltranslation.admin import TranslationAdmin
 
@@ -135,3 +136,16 @@ def collapsible_menus(model_admin):
             'fields': menus_fields,
             'classes': ('collapse-closed',)
         }))
+
+
+def initial_in_menus(page_admin, in_menus):
+    """
+    Chooses some initial menus for a page subtype.
+    """
+    class InitialInMenusForm(PageAdminForm):
+        def __init__(self, *args, **kwargs):
+            super(InitialInMenusForm, self).__init__(*args, **kwargs)
+            if not 'in_menus' in self.initial:
+                self.initial['in_menus'] = in_menus
+
+    page_admin.form = InitialInMenusForm
