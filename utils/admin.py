@@ -79,7 +79,7 @@ def separate_page_admin(page_models, page_admins):
             @classmethod
             def get_content_models(cls):
                 # PageAdmin.get_content_models side effects.
-                super(SeparatePageAdmin, cls).get_content_models()
+                page_admin.get_content_models()
                 return page_models
 
             def in_menu(self):
@@ -87,7 +87,8 @@ def separate_page_admin(page_models, page_admins):
 
             def changelist_view(self, request, **kwargs):
                 kwargs.setdefault('extra_context', {})
-                kwargs['extra_context']['page_models'] = page_models
+                kwargs['extra_context']['page_models'] = \
+                    self.get_content_models()
                 return DisplayableAdmin.changelist_view(self, request,
                                                         **kwargs)
 
