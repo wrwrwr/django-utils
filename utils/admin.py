@@ -97,45 +97,54 @@ def separate_page_admin(page_models, page_admins):
         admin.site.register(page_model, SeparatePageAdmin)
 
 
-def collapsible_status(model_admin):
+def collapsible_fieldset(model_admin, fields, label, position=None):
+    """
+    Moves ``fields`` to a single collapsed fieldset with ``label``.
+    Only fields removed from other fieldsets will be included in the new set.
+    """
+    found_fields = []
+    for fieldset in model_admin.fieldsets:
+        found_fields.extend(f for f in fieldset[1]['fields'] if f in fields)
+        fieldset[1]['fields'] = [f for f in fieldset[1]['fields']
+                                 if f not in fields]
+    if position is None:
+        position = len(model_admin.fieldsets)
+    model_admin.fieldsets = list(model_admin.fieldsets)
+    model_admin.fieldsets.insert(position,
+        (label, {'fields': found_fields, 'classes': ('collapse-closed',)}))
+
+
+def collapsible_status(model_admin, position=None):
     """
     Mezzanine specific. Puts ``status``, ``available`` and publication dates
     under a single collapsed fieldset.
     """
-    fields = model_admin.fieldsets[0][1]['fields']
-    status_fields = []
-    for f in (
-            'status',
-            ('status', 'available'),
-            ('publish_date', 'expiry_date')):
-        if f in fields:
-            fields.remove(f)
-            status_fields.append(f)
-    model_admin.fieldsets = list(model_admin.fieldsets)
-    model_admin.fieldsets.insert(1,
-        (_("Status"), {
-            'fields': status_fields,
-            'classes': ('collapse-closed',)
-        }))
+    collapsible_fieldset(
+        model_admin,
+        ('status', ('status', 'available'), ('publish_date', 'expiry_date')),
+        _("Status"), position)
 
 
-def collapsible_menus(model_admin):
+def collapsible_menus(model_admin, position=None):
     """
     Mezzanine specific. Puts menu selection and ``login_required`` under a
     collapsed fieldset.
     """
-    fields = model_admin.fieldsets[0][1]['fields']
-    menus_fields = []
-    for f in ('in_menus', 'login_required'):
-        if f in fields:
-            fields.remove(f)
-            menus_fields.append(f)
-    model_admin.fieldsets = list(model_admin.fieldsets)
-    model_admin.fieldsets.insert(1,
-        (_("Menus"), {
-            'fields': menus_fields,
-            'classes': ('collapse-closed',)
-        }))
+    collapsible_fieldset(
+        model_admin,
+        ('in_menus', 'login_required'),
+        _("Menus"), position)
+
+
+def collapsible_categories(model_admin, position=None):
+    """
+    Mezzanine specific. Puts categories filter in a collapsed fieldset.
+    Works with ``BlogPost`` categories and ``Product`` categories.
+    """
+    collapsible_fieldset(
+        model_admin,
+        ('categories',),
+        _("Categories"), position)
 
 
 def initial_in_menus(page_admin, in_menus):
