@@ -22,7 +22,7 @@ class SortableAdmin(ModelAdmin):
         js = (
             '//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js',
             '//ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js',
-            'scripts/admin-sortable.js',
+            'utils/admin-sortable.js',
         )
 
 
