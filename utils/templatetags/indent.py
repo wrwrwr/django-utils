@@ -21,7 +21,7 @@ def indent_filter(value, tabs=1):
     return LINE_START.sub(r'\t' * int(tabs), value)
 
 
-@register.tag
+@register.tag(name='indent')
 def indent_tag(parser, token):
     """
     Makes each line in a block begin with a fixed amount of tabs and removes
