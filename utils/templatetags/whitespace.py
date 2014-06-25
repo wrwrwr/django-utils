@@ -1,5 +1,3 @@
-# Deprecated -- use whitespace instead.
-
 import re
 
 from django import template
@@ -9,6 +7,7 @@ from django.template.defaultfilters import stringfilter
 INPUT_START_WS = re.compile(r'\A\s+')
 LINE_START_WS = re.compile(r'^(?!\n)\s*', re.MULTILINE)
 LINE_START = re.compile(r'^(?!\n)', re.MULTILINE)
+BLANK_LINES = re.compile(r'\n\s*\n', re.MULTILINE)
 
 
 register = template.Library()
@@ -78,3 +77,40 @@ class IndentNode(template.Node):
         if self.starting:
             r = INPUT_START_WS.sub('', r)
         return r
+
+
+@register.tag(name='blankless')
+def blankless(parser, token):
+    """
+    Removes all blank lines rendered by code surrounded by the tag (including
+    lines of the tag markers).
+
+    For example:
+        before
+        {% blankless %}
+
+            a
+
+            b
+
+        {% endblankless %}
+        after
+
+    renders as:
+        before
+            a
+            b
+        after
+    """
+    ns = parser.parse(('endblankless',))
+    parser.delete_first_token()
+    return BlankLessNode(ns)
+
+
+class BlankLessNode(template.Node):
+    def __init__(self, nodes):
+        self.nodes = nodes
+
+    def render(self, context):
+        r = self.nodes.render(context)
+        return BLANK_LINES.sub('\n', r).strip()
