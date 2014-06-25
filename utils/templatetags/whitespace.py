@@ -28,7 +28,7 @@ def indent_tag(parser, token):
     Makes each line in a block begin with a fixed amount of tabs and removes
     all whitespace at the block start.
 
-    Example: 
+    Example:
         {% indent =2 %} fixes indentation (for each line removes all whitespace
                         from its start, and then prepends 2 tabs);
         {% indent +2 %} adds 2 tabs to each line;
@@ -72,7 +72,7 @@ class IndentNode(template.Node):
         elif self.mode == '+':
             r = LINE_START.sub(i, r)
         else:
-             raise NotImplementedError(
+            raise NotImplementedError(
                 "Only fixed and plus are supported at the moment.")
         if self.starting:
             r = INPUT_START_WS.sub('', r)

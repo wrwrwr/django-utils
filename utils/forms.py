@@ -18,4 +18,3 @@ class URLField(forms.URLField):
             base_url = '//{}/'.format(domain)
         value = urljoin(base_url, value)
         return super(URLField, self).to_python(value)
-

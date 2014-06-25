@@ -109,7 +109,8 @@ def collapsible_fieldset(model_admin, fields, label, position=None):
     if position is None:
         position = len(model_admin.fieldsets)
     model_admin.fieldsets = list(model_admin.fieldsets)
-    model_admin.fieldsets.insert(position,
+    model_admin.fieldsets.insert(
+        position,
         (label, {'fields': found_fields, 'classes': ('collapse-closed',)}))
 
 

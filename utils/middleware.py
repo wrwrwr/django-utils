@@ -66,7 +66,8 @@ class CSPMiddleware:
     -- Update to match changes in the standard (particularly
        X-Content-Security-Policy and X-WebKit-CSP should be removed).
     -- Maybe just let user define one constant (CONTENT_SECURITY_POLICY),
-       send the same headers for WebKit and Gecko and deduce X-Frame-Options from it?
+       send the same headers for WebKit and Gecko and deduce X-Frame-Options
+       from it?
     -- Good collection of other options: http://drupal.org/project/seckit.
     -- Exempt decorator.
     """
