@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='Django utils',
-    version='0.1',
+    name='Yet another Django utils',
+    version='0.2',
     author='Wojtek Ruszczewski',
     author_email='django@wr.waw.pl',
     description='Collection of random utilities for Django.',

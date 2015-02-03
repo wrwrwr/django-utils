@@ -40,7 +40,7 @@ class TidyMiddleware:
     def process_response(self, request, response):
         if 'text/html' in response['Content-Type']:
             import tidy
-            response.content = str(tidy.parseString(content, **options))
+            response.content = str(tidy.parseString(response.content))
         return response
 
 

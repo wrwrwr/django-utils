@@ -156,7 +156,7 @@ def initial_in_menus(page_admin, in_menus):
     class InitialInMenusForm(PageAdminForm):
         def __init__(self, *args, **kwargs):
             super(InitialInMenusForm, self).__init__(*args, **kwargs)
-            if not 'in_menus' in self.initial:
+            if 'in_menus' not in self.initial:
                 self.initial['in_menus'] = in_menus
 
     page_admin.form = InitialInMenusForm

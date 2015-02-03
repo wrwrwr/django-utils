@@ -50,7 +50,7 @@ import copy
 from django.db import connections
 from django.db.models import Manager, Model
 from django.db.models.base import ModelBase
-from django.db.models.query import EmptyQuerySet, QuerySet
+from django.db.models.query import QuerySet
 from django.utils import six
 
 
@@ -158,10 +158,11 @@ class VolatileQuerySet(object):
         # Could support some more comparisons. Filtering by non-primary-key
         # fields could also be implemented (with linear cost).
         if kwargs.keys() != ['pk']:
-            raise ValueError("Only filtering by primary key is supported ({}).".format(kwargs))
+            raise ValueError("Only filtering by primary key is "
+                             "supported ({}).".format(kwargs))
         items = self.items
         value = kwargs['pk']
-        filtered_items = {pk: items[pk] for pk in items if pk == value }
+        filtered_items = {pk: items[pk] for pk in items if pk == value}
         return self._clone(filtered_items)
 
     def using(self, alias):
