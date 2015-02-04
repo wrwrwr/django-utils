@@ -17,7 +17,9 @@ recreated anew after each application restart.
 
 Ihe implementation is partial. Filtering, ordering and aggregation are normally
 delegated to the database, so will mostly not work with this minimal approach.
-However, it is sufficient to display a basic change list in admin.
+
+In the current you may display a change list, add and edit objects in the
+admin, but not much more.
 
 
 How to use it:
@@ -47,8 +49,9 @@ How to use it:
 Coded for Django 1.5, may need some adaptation for newer versions.
 """
 import copy
+import operator
 
-from django.db import connections
+from django.db import IntegrityError, connections
 from django.db.models import Manager, Model
 from django.db.models.base import ModelBase
 from django.db.models.query import QuerySet
@@ -75,19 +78,19 @@ class VolatileDatabaseWrapper(object):
 # Name of the fake connection added to the connection handler.
 DB_ALIAS = 'volatile-model-storage'
 
-# This will be added to the connections under ``DB_ALIAS``.
+# This will be added to the connections under DB_ALIAS.
 DB_WRAPPER = VolatileDatabaseWrapper()
 
 
 class VolatileQuerySet(object):
     """
-    A partial implementation of the ``QuerySet`` API using key-sorted dict
+    A partial implementation of the ``QuerySet`` API using ordering-sorted dict
     as the storage.
 
     Note that it does not postpone processing, creating or deleting models
     won't be reflected in existing query sets. Also note that unlike with
-    vanilla you don't get multiple copies of model instances -- all queries
-    return the same (last stored) instance.
+    vanilla query sets you don't get multiple copies of model instances --
+    all queries return the same (last stored) instance.
     """
     def __init__(self, model):
         self.model = model
@@ -96,7 +99,7 @@ class VolatileQuerySet(object):
         # We'd like to reuse a few of QuerySet methods.
         self.db = None
         # Some parts of admin use QuerySet.query directly.
-        self.query = type('', (), {})
+        self.query = type('Query', (), {})
         self.query.select_related = True
         self.query.order_by = []
         self.query.where = None
@@ -116,7 +119,7 @@ class VolatileQuerySet(object):
         return len(self.items)
 
     def iterator(self):
-        # The items are kept sorted properly, so we can just iterate values.
+        # Items are kept sorted properly, so we can just iterate values.
         return six.itervalues(self.items)
 
     def count(self):
@@ -135,24 +138,13 @@ class VolatileQuerySet(object):
             raise self.model.MultipleObjectsReturned()
 
     def create(self, **kwargs):
-        # This calls Model.save().
-        QuerySet.create.__func__(self, **kwargs)
+        # This calls Model.save(), which in turn calls Manager._insert().
+        return QuerySet.create.__func__(self, **kwargs)
 
     def bulk_create(self, objs, batch_size=None):
         # Django does not call Model.save() or send signals in bulk methods.
-        # We also handle auto-incrementing ids here.
-        storage = self.storage
-        max_pk = storage.keys()[-1] if storage else -1
-        for obj in objs:
-            pk = obj.pk
-            if pk is None:
-                max_pk += 1
-                pk = max_pk
-            elif isinstance(pk, six.integer_types) and pk > max_pk:
-                max_pk = pk
-            storage[pk] = obj
-        self.storage = sorted(storage)
-        self.items = copy.copy(self.storage)
+        self._store_or_update(objs)
+        return objs
 
     def get_or_create(self, **kwargs):
         # This handles arguments and calls Model.save().
@@ -164,20 +156,15 @@ class VolatileQuerySet(object):
         pass
 
     def exists(self):
-        return bool(self.storage)
+        return bool(self.items)
 
     def filter(self, *args, **kwargs):
-        # Could support some more comparisons. Filtering by non-primary-key
-        # fields could also be implemented (with linear cost).
-        if kwargs != {} and kwargs.keys() != ['pk']:
-            raise ValueError("Only filtering by primary key is "
-                             "supported ({}).".format(kwargs))
-        if kwargs == {}:
-            return self._clone()
-        items = self.items
-        value = kwargs['pk']
-        filtered_items = {pk: items[pk] for pk in items if pk == value}
-        return self._clone(filtered_items)
+        kwargs['_negate'] = False
+        return self._filter_or_exclude(*args, **kwargs)
+
+    def exclude(self, *args, **kwargs):
+        kwargs['_negate'] = True
+        return self._filter_or_exclude(*args, **kwargs)
 
     def select_related(self, *fields, **kwargs):
         # We're storing models, these may only be created with references to
@@ -199,6 +186,46 @@ class VolatileQuerySet(object):
         clone.items = copy.copy(self.items) if new_items is None else new_items
         return clone
 
+    def _store_or_update(self, objs):
+        # Bulk create that may also update existing objects and can handle
+        # auto-incrementing ids.
+        storage = self.storage
+        max_pk = storage.keys()[-1] if storage else -1
+        for obj in objs:
+            pk = obj.pk
+            if pk is None:
+                max_pk += 1
+                pk = max_pk
+            elif isinstance(pk, six.integer_types) and pk > max_pk:
+                max_pk = pk
+            elif pk in storage:
+                raise IntegrityError("Object with primary key {} already "
+                                     "exists.".format(pk))
+            if hasattr(obj, '_storage_pk'):
+                del storage[obj._storage_pk]
+            obj._storage_pk = pk
+            storage[pk] = obj
+        self.storage = sorted(storage)
+        self.items = copy.copy(self.storage)  # TODO: Create after filter.
+
+    def _filter_or_exclude(self, *args, **kwargs):
+        # Could support some more comparisons. Filtering by non-primary-key
+        # fields could also be implemented (mostly with linear cost).
+        negate = kwargs.pop('_negate')
+        filters = kwargs.keys()
+        if filters == []:
+            return self._clone()
+        elif filters == ['pk'] or filters == [self.model._meta.pk.name]:
+            items = self.items
+            comparison = (operator.ne if negate else operator.eq)
+            value = kwargs.values()[0]
+            filtered_items = {
+                pk: items[pk] for pk in items if comparison(pk, value)}
+            return self._clone(filtered_items)
+        else:
+            raise ValueError("Only filtering by primary key is "
+                             "supported ({}).".format(kwargs))
+
 
 class VolatileManager(Manager):
     """
@@ -216,7 +243,7 @@ class VolatileManager(Manager):
 
     def _insert(self, objs, fields, **kwargs):
         # Called from Model.save().
-        VolatileQuerySet(self.model).bulk_create(objs)
+        VolatileQuerySet(self.model)._store_or_update(objs)
 
 
 class VolatileModelBase(ModelBase):
