@@ -15,8 +15,9 @@ database backends, instead using a Python dict (primary key --> model instance)
 as storage. Obviously -- such storage is volatile -- the objects need to be
 recreated anew after each application restart.
 
-Ihe implementation is partial. Filtering, aggregation etc. are normally
-delegated to the database, so will not work with this minimal approach.
+Ihe implementation is partial. Filtering, ordering and aggregation are normally
+delegated to the database, so will mostly not work with this minimal approach.
+However, it is sufficient to display a basic change list in admin.
 
 
 How to use it:
@@ -74,8 +75,7 @@ class VolatileDatabaseWrapper(object):
 # Name of the fake connection added to the connection handler.
 DB_ALIAS = 'volatile-model-storage'
 
-# This will be added to the connections under ``DB_ALIAS`` when the first
-# volatile model class declaration is processed.
+# This will be added to the connections under ``DB_ALIAS``.
 DB_WRAPPER = VolatileDatabaseWrapper()
 
 
@@ -90,10 +90,18 @@ class VolatileQuerySet(object):
     return the same (last stored) instance.
     """
     def __init__(self, model):
-        self.db = None  # We'd like to reuse a few of QuerySet methods.
         self.model = model
         self.storage = model.storage  # The underlying class-wide storage.
         self.items = copy.copy(self.storage)  # Filtered collection.
+        # We'd like to reuse a few of QuerySet methods.
+        self.db = None
+        # Some parts of admin use QuerySet.query directly.
+        self.query = type('', (), {})
+        self.query.select_related = True
+        self.query.order_by = []
+        self.query.where = None
+        # Ensure the fake database entry exists.
+        setattr(connections._connections, DB_ALIAS, DB_WRAPPER)
 
     def __getitem__(self, k):
         # This may support a bit more slices than QuerySet.
@@ -102,6 +110,10 @@ class VolatileQuerySet(object):
     def __repr__(self):
         # Use the QuerySet implementation.
         return QuerySet.__repr__.__func__(self)
+
+    def __len__(self):
+        # The size of the filtered collection.
+        return len(self.items)
 
     def iterator(self):
         # The items are kept sorted properly, so we can just iterate values.
@@ -128,7 +140,7 @@ class VolatileQuerySet(object):
 
     def bulk_create(self, objs, batch_size=None):
         # Django does not call Model.save() or send signals in bulk methods.
-        # We also need to handle auto-increasing ids here.
+        # We also handle auto-incrementing ids here.
         storage = self.storage
         max_pk = storage.keys()[-1] if storage else -1
         for obj in objs:
@@ -157,13 +169,24 @@ class VolatileQuerySet(object):
     def filter(self, *args, **kwargs):
         # Could support some more comparisons. Filtering by non-primary-key
         # fields could also be implemented (with linear cost).
-        if kwargs.keys() != ['pk']:
+        if kwargs != {} and kwargs.keys() != ['pk']:
             raise ValueError("Only filtering by primary key is "
                              "supported ({}).".format(kwargs))
+        if kwargs == {}:
+            return self._clone()
         items = self.items
         value = kwargs['pk']
         filtered_items = {pk: items[pk] for pk in items if pk == value}
         return self._clone(filtered_items)
+
+    def select_related(self, *fields, **kwargs):
+        # We're storing models, these may only be created with references to
+        # other loaded models.
+        return self
+
+    def order_by(self, *field_names):
+        # TODO: We just ignore the ordering for now.
+        return self
 
     def using(self, alias):
         if alias != DB_ALIAS:
@@ -206,7 +229,6 @@ class VolatileModelBase(ModelBase):
         new_class = super(VolatileModelBase, cls).__new__(cls, name, bases, attrs)
         if name != 'NewBase' and not abstract:
             new_class.storage = {}
-            setattr(connections._connections, DB_ALIAS, DB_WRAPPER)
         return new_class
 
 
